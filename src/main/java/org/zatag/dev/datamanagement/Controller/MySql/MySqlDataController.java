@@ -1,5 +1,6 @@
 package org.zatag.dev.datamanagement.Controller.MySql;
 
+import org.jetbrains.annotations.NotNull;
 import org.zatag.dev.datamanagement.Models.MySql.MySQLLink;
 import org.zatag.dev.datamanagement.Models.MySql.MySqlFiles;
 import org.zatag.dev.datamanagement.Repository.MySql.MySQLLinkRepository;
@@ -14,6 +15,10 @@ import java.sql.Statement;
 import java.util.HashMap;
 import java.util.Optional;
 
+/**
+ * This class is a controller for handling MySQL data operations.
+ * It provides endpoints for extracting, deleting, updating, and inserting data into a MySQL database.
+ */
 @CrossOrigin(origins = "http://localhost:5173")
 @RestController
 @RequestMapping("/api/mysql-data")
@@ -29,6 +34,11 @@ public class MySqlDataController {
         this.mySQLLinkRepository = mySQLLinkRepository;
     }
 
+    /**
+     * This method extracts data from a MySQL table and returns it as a JSON string.
+     * @param id The id of the MySQLLink to use for the extraction
+     * @return A JSON string containing the extracted data
+     */
     @GetMapping("/view/{id}")
     public MySqlFiles extractMySQLTable(@PathVariable String id) {
 
@@ -81,6 +91,11 @@ public class MySqlDataController {
         }
     }
 
+    /**
+     * This method deletes a row from a MySQL table based on the provided row data.
+     * @param id The id of the MySQLLink to use for the deletion
+     * @param row The row data to use for the deletion
+     */
     @DeleteMapping("/view/{id}")
     public void deleteMySQLLink(@PathVariable String id, @RequestBody HashMap<String,String> row) {
         // Connect to MySQL using the provided connection details
@@ -114,6 +129,11 @@ public class MySqlDataController {
             e.printStackTrace();
         }
     }
+    /**
+     * This method returns the primary key of a MySQL table.
+     * @param tableName The name of the table
+     * @return The primary key of the table
+     */
     public String getPrimaryKey(String tableName) {
         String primaryKey = "";
         try (Connection connection = dataSource.getConnection();
@@ -129,6 +149,11 @@ public class MySqlDataController {
         return primaryKey;
     }
 
+    /**
+     * This method updates a row in a MySQL table based on the provided row data.
+     * @param id The id of the MySQLLink to use for the update
+     * @param row The row data to use for the update
+     */
     @PutMapping("/view/{id}")
     public void updateMySQLLink(@PathVariable String id, @RequestBody HashMap<String,String> row) {
         // Connect to MySQL using the provided connection details
@@ -163,7 +188,12 @@ public class MySqlDataController {
         }
     }
 
-    private String getUpdateQuery(HashMap<String, String> row) {
+    /**
+     * This method returns the update query for a row in a MySQL table.
+     * @param row The row data
+     * @return The update query for the row
+     */
+    private @NotNull String getUpdateQuery(@NotNull HashMap<String, String> row) {
         StringBuilder updateQuery = new StringBuilder();
         for (String key : row.keySet()) {
             if (!key.equals("id")) {
@@ -175,6 +205,11 @@ public class MySqlDataController {
         return updateQuery.toString();
     }
 
+    /**
+     * This method inserts a row into a MySQL table based on the provided row data.
+     * @param id The id of the MySQLLink to use for the insertion
+     * @param row The row data to use for the insertion
+     */
     @PostMapping("/view/{id}")
     public void insertMySQLLink(@PathVariable String id, @RequestBody HashMap<String,String> row) {
         // Connect to MySQL using the provided connection details
@@ -206,7 +241,12 @@ public class MySqlDataController {
         }
     }
 
-    private String getInsertQuery(HashMap<String, String> row) {
+    /**
+     * This method returns the insert query for a row in a MySQL table.
+     * @param row The row data
+     * @return The insert query for the row
+     */
+    private @NotNull String getInsertQuery(@NotNull HashMap<String, String> row) {
         StringBuilder insertQuery = new StringBuilder("(");
         for (String key : row.keySet()) {
             insertQuery.append(key).append(", ");

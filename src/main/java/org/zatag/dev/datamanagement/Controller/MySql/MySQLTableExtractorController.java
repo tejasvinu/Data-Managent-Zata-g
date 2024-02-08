@@ -33,6 +33,7 @@ public class MySQLTableExtractorController {
     @PostMapping("/extract")
     public MySqlFiles extractMySQLTable(@RequestBody MySQLRequest request) {
         try {
+            System.out.println("Request received: " + request.toString());
             // Configure the DataSource based on the request
             ((DriverManagerDataSource) dataSource).setUrl(request.getMysqlUrl());
             ((DriverManagerDataSource) dataSource).setUsername(request.getUsername());
@@ -42,7 +43,8 @@ public class MySQLTableExtractorController {
             try (Connection connection = dataSource.getConnection();
                  Statement statement = connection.createStatement();
                  ResultSet resultSet = statement.executeQuery("SELECT * FROM " + request.getTableName())) {
-
+                System.out.println("Connection established successfully!");
+                System.out.println("Extracting data from the table: " + request.getTableName());
                 // Process ResultSet and generate JSON data
                 StringBuilder jsonData = new StringBuilder("[");
                 while (resultSet.next()) {
@@ -83,7 +85,7 @@ public class MySQLTableExtractorController {
         String fileName = "mysql_Table_data" + timestamp + ".json";
 
         // Specify your directory path here
-        String directoryPath = "C:\\Users\\workhorse\\Documents\\J2EE\\Day10-SpringBootRest\\datamanagement\\GeneratedFiles\\";
+        String directoryPath = "C:\\Users\\workhorse\\Documents\\Final Project\\Data Managent(Zata-g)\\GeneratedFiles\\";
 
         try (FileWriter fileWriter = new FileWriter(directoryPath + fileName)) {
             fileWriter.write(jsonData);

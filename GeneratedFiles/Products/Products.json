@@ -1,0 +1,12 @@
+{
+  "mysqlUrl": "jdbc:mysql://localhost:3306/pracnode",
+  "username": "root",
+  "password": "123",
+  "dbName": "pracnode",
+  "tableName": "newproducts",
+  "schema": {
+    "name": "varchar(255)",
+    "price": "int",
+    "category": "varchar(255)"
+  }
+}
