@@ -43,18 +43,9 @@ public class ExcelMySqlSync {
         System.out.println("db url"+ dbUrl);
         System.out.println("schema: " + this.schema);
     }
-
-    public ExcelMySqlSync() {
-
-    }
-
-    public static void main(String[] args) throws IOException, SQLException {
-
-    }
-
     public void syncData() throws IOException, SQLException {
         System.out.println("Syncing data");
-        if (createTableIfNotExists()) {
+        if (!createTableIfNotExists()) {
             System.out.println("Table created");
             List<Map<String, String>> excelData = readExcelFile(excelFilePath);
             System.out.println("Excel data: " + excelData);
@@ -89,27 +80,32 @@ public class ExcelMySqlSync {
                         headers.add(cell.getStringCellValue());
                     }
                 }
+                System.out.println("Headers: " + headers);
                 // Read the data
                 while (rowIterator.hasNext()) {
                     Row row = rowIterator.next();
                     Map<String, String> rowData = new HashMap<>();
                     for (int i = 0; i < headers.size(); i++) {
-                        Cell cell = row.getCell(i);
+                        Cell cell = row.getCell(i, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK);
+                        System.out.println("Cell: " + cell);
                         String cellValue = "";
-                        if (cell != null) {
-                            switch (cell.getCellType()) {
-                                case STRING:
-                                    cellValue = cell.getStringCellValue();
-                                    break;
-                                case NUMERIC:
+                        switch (cell.getCellType()) {
+                            case STRING:
+                                cellValue = cell.getStringCellValue();
+                                break;
+                            case NUMERIC:
+                                if (headers.get(i).equals("id")) {
+                                    cellValue = String.valueOf((int) cell.getNumericCellValue());
+                                } else {
                                     cellValue = String.valueOf(cell.getNumericCellValue());
-                                    break;
-                                default:
-                                    System.out.println("Invalid cell type");
-                            }
+                                }
+                                break;
+                            default:
+                                cellValue = cell.getStringCellValue();
                         }
                         rowData.put(headers.get(i), cellValue);
                     }
+                    System.out.println("Row data: " + rowData);
                     data.add(rowData);
                 }
             }
@@ -147,11 +143,28 @@ public class ExcelMySqlSync {
     private void syncData(List<Map<String, String>> excelData, List<Map<String, String>> mysqlData) throws IOException, SQLException {
         // Find new rows in Excel data
         List<Map<String, String>> newExcelRows = new ArrayList<>(excelData);
-        newExcelRows.removeAll(mysqlData);
+        System.out.println("excelData: " + excelData);
+        System.out.println("mysqlData: " + mysqlData);
+        newExcelRows.removeIf(excelRow -> mysqlData.stream().anyMatch(mysqlRow -> mysqlRow.get("id").equals(excelRow.get("id"))));
 
+        System.out.println("newExcelRows: " + newExcelRows);
         // Find deleted rows in Excel data
         List<Map<String, String>> deletedExcelRows = new ArrayList<>(mysqlData);
-        deletedExcelRows.removeAll(excelData);
+        System.out.println("mysqlData: " + mysqlData);
+        System.out.println("excelData: " + excelData);
+        deletedExcelRows.removeIf(mysqlRow -> excelData.stream().anyMatch(excelRow -> excelRow.get("id").equals(mysqlRow.get("id"))));
+        System.out.println("deletedExcelRows: " + deletedExcelRows);
+        // Find updated rows in Excel data
+        List<Map<String, String>> updatedExcelRows = new ArrayList<>();
+        for (Map<String, String> excelRow : excelData) {
+            for (Map<String, String> mysqlRow : mysqlData) {
+                if (Objects.equals(mysqlRow.get("id"), excelRow.get("id")) && !mysqlRow.equals(excelRow)) {
+                    updatedExcelRows.add(excelRow);
+                    break;
+                }
+            }
+        }
+        System.out.println("updatedExcelRows: " + updatedExcelRows);
 
         // Update MySQL table
         for (Map<String, String> row : newExcelRows) {
@@ -160,16 +173,40 @@ public class ExcelMySqlSync {
         for (Map<String, String> row : deletedExcelRows) {
             deleteRowFromMySQL(row);
         }
+        for (Map<String, String> row : updatedExcelRows) {
+            updateRowInMySQL(row);
+        }
 
         // Update Excel file
-        for (Map<String, String> row : deletedExcelRows) {
-            excelData.remove(row);
-        }
+        excelData.removeAll(deletedExcelRows);
         excelData.addAll(newExcelRows);
         writeDataToExcel(excelData, excelFilePath);
     }
 
+    private void updateRowInMySQL(Map<String, String> row) {
+        ((DriverManagerDataSource) dataSource).setUrl(dbUrl);
+        ((DriverManagerDataSource) dataSource).setUsername(user);
+        ((DriverManagerDataSource) dataSource).setPassword(pass);
+        // Parse the row information as needed
+        System.out.println("Received row data: " + row);
+        String primaryKey = getPrimaryKey(tableName);
+        System.out.println("Primary key: " + primaryKey);
+        // Now you can connect to the database and update the row
+        try (Connection connection = dataSource.getConnection();
+             Statement statement = connection.createStatement()) {
+            // Implement your update logic using the row data
+            String updateValues = row.entrySet().stream()
+                    .map(entry -> entry.getKey() + " = '" + entry.getValue() + "'")
+                    .reduce((entry1, entry2) -> entry1 + ", " + entry2)
+                    .orElse("");
+            statement.executeUpdate("UPDATE " + tableName + " SET " + updateValues + " WHERE " + primaryKey + " = '" + row.get(primaryKey) + "'");
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
     private void insertRowToMySQL(Map<String, String> row) throws SQLException {
+        System.out.println("insertRowToMySQL called");
         ((DriverManagerDataSource) dataSource).setUrl(dbUrl);
         ((DriverManagerDataSource) dataSource).setUsername(user);
         ((DriverManagerDataSource) dataSource).setPassword(pass);
@@ -192,6 +229,7 @@ public class ExcelMySqlSync {
     }
 
     private void deleteRowFromMySQL(Map<String, String> row) throws SQLException {
+        System.out.println("deleteRowFromMySQL called");
         ((DriverManagerDataSource) dataSource).setUrl(dbUrl);
         ((DriverManagerDataSource) dataSource).setUsername(user);
         ((DriverManagerDataSource) dataSource).setPassword(pass);
@@ -230,7 +268,7 @@ public class ExcelMySqlSync {
         return primaryKey;
     }
 
-    private static void writeDataToExcel(List<Map<String, String>> data, String filePath) throws IOException {
+    public static void writeDataToExcel(List<Map<String, String>> data, String filePath) throws IOException {
         // Implement this method to write data to Excel file
         Workbook workbook = new XSSFWorkbook();
         Sheet sheet = workbook.createSheet("Sheet1");
@@ -249,24 +287,25 @@ public class ExcelMySqlSync {
             }
         }
     }
-    private boolean createTableIfNotExists() throws SQLException, IOException {
-        boolean tableCreated = false;
-        try (Connection conn = DriverManager.getConnection(dbUrl, user, pass);
-             Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery("SHOW TABLES LIKE '" + tableName + "'")) {
-            if (!rs.next()) {
-                StringBuilder columns = new StringBuilder();
-                for (Map.Entry<String, String> entry : schema.entrySet()) {
-                    if (columns.length() > 0) {
-                        columns.append(", ");
-                    }
-                    columns.append(entry.getKey()).append(" ").append(entry.getValue());
+    public boolean createTableIfNotExists() throws SQLException, IOException {
+    boolean tableExists = false;
+    try (Connection conn = DriverManager.getConnection(dbUrl, user, pass);
+         Statement stmt = conn.createStatement();
+         ResultSet rs = stmt.executeQuery("SHOW TABLES LIKE '" + tableName + "'")) {
+        if (!rs.next()) {
+            StringBuilder columns = new StringBuilder();
+            for (Map.Entry<String, String> entry : schema.entrySet()) {
+                if (!columns.isEmpty()) {
+                    columns.append(", ");
                 }
-                String createTableSql = "CREATE TABLE " + tableName + " (" + columns + ") ENGINE=INNODB;";
-                stmt.execute(createTableSql);
-                tableCreated = true;
+                columns.append(entry.getKey()).append(" ").append(entry.getValue());
             }
+            String createTableSql = "CREATE TABLE " + tableName + " (" + columns + ", PRIMARY KEY (id)) ENGINE=INNODB;";
+            stmt.execute(createTableSql);
+        } else {
+            tableExists = true;
         }
-        return tableCreated;
+    }
+    return tableExists;
     }
 }

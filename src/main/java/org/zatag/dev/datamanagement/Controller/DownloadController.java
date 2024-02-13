@@ -1,5 +1,7 @@
 package org.zatag.dev.datamanagement.Controller;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import org.apache.commons.io.FilenameUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
@@ -8,9 +10,14 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 import org.zatag.dev.datamanagement.Scheduled.FileChangeChecker;
+import org.zatag.dev.datamanagement.Scheduled.WebDbSync;
 
-import java.io.File;
+import java.io.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
 @CrossOrigin(origins = "http://localhost:5173")
 @RestController
@@ -18,12 +25,16 @@ import java.io.File;
 public class DownloadController {
 
     @Autowired
+    private WebDbSync webDbSync;
+
+    @Autowired
     private FileChangeChecker fileChangeChecker;
+
     @GetMapping("/{fileName}")
     public ResponseEntity<Resource> downloadFile(@PathVariable String fileName) {
         try {
             // Replace "path_to_your_file" with the actual path to your generated JSON file
-            File file = new File("C:\\Users\\workhorse\\Documents\\Final Project\\Data Managent(Zata-g)\\GeneratedFiles\\"+fileName);
+            File file = new File("C:\\Users\\workhorse\\Documents\\Final Project\\Data Managent(Zata-g)\\GeneratedFiles\\" + fileName);
 
             // Create a FileSystemResource from  the file
             Resource resource = new FileSystemResource(file);

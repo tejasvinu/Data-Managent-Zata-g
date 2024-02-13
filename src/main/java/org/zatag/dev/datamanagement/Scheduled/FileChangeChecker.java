@@ -21,7 +21,7 @@ public class FileChangeChecker {
     private final Path directoryPath = Paths.get("C:\\Users\\workhorse\\Documents\\Final Project\\Data Managent(Zata-g)\\GeneratedFiles");
     private final Map<Path, String> fileContents = new HashMap<>();
 
-    @Scheduled(fixedRate = 10000) // Check for changes every 5 seconds
+    //@Scheduled(fixedRate = 10000) // Check for changes every 5 seconds
     public void checkForFileChanges() {
         System.out.println("Checking for file changes");
         try (Stream<Path> paths = Files.walk(directoryPath)) {
@@ -46,38 +46,21 @@ public class FileChangeChecker {
                     System.out.println("schema: " + schema);
                     ExcelMySqlSync excelMySqlSync = new ExcelMySqlSync(path, dbUrl, user, pass, tableName, schema);
                     try {
-                        excelMySqlSync.syncData();
-                    } catch (IOException | SQLException e) {
-                        e.printStackTrace();
-                    }
-
-                    if (fileContents.containsKey(path)) {
-                        String oldContent = fileContents.get(path);
-                        if (!newContent.equals(oldContent)) {
-                            System.out.println("File changed: " + path);
-                            if (newContent.length() > oldContent.length()) {
-                                System.out.println("More content added");
-                                String addedContent = newContent.substring(oldContent.length());
-                                System.out.println("Added contents: " + addedContent);
-                            } else if (newContent.length() < oldContent.length()) {
-                                System.out.println("Some content deleted");
-                                String[] oldLines = oldContent.split("\n");
-                                String[] newLines = newContent.split("\n");
-                                for (String oldLine : oldLines) {
-                                    boolean isDeleted = true;
-                                    for (String newLine : newLines) {
-                                        if (oldLine.equals(newLine)) {
-                                            isDeleted = false;
-                                            break;
-                                        }
-                                    }
-                                    if (isDeleted) {
-                                        System.out.println("Deleted content: " + oldLine);
-                                    }
+                        if (excelMySqlSync.createTableIfNotExists()) {
+                            if (fileContents.containsKey(path)) {
+                                String oldContent = fileContents.get(path);
+                                if (!newContent.equals(oldContent)) {
+                                    System.out.println("File changed: " + path);
+                                    excelMySqlSync.syncData();
+                                    fileContents.put(path, newContent);
                                 }
+                            } else {
+                                fileContents.put(path, newContent);
+                                excelMySqlSync.syncData();
                             }
                         }
-                        fileContents.put(path, newContent);
+                    } catch (SQLException | IOException e) {
+                        e.printStackTrace();
                     }
                 }
             });
@@ -119,5 +102,6 @@ public class FileChangeChecker {
 
         return null;
     }
+
 }
 
