@@ -26,7 +26,7 @@ public class ExcelMySqlSync {
     private  Map<String, String> schema;
     private DataSource dataSource;
 
-    ExcelMySqlSync(Path excelFilePath, String dbUrl, String user, String pass, String tableName, Map<String, String> schema) {
+    public ExcelMySqlSync(Path excelFilePath, String dbUrl, String user, String pass, String tableName, Map<String, String> schema) {
         this.excelFilePath = String.valueOf(excelFilePath);
         this.dbUrl = dbUrl;
         this.user = user;
@@ -43,6 +43,15 @@ public class ExcelMySqlSync {
         System.out.println("db url"+ dbUrl);
         System.out.println("schema: " + this.schema);
     }
+
+    public ExcelMySqlSync() {
+
+    }
+
+    public static void main(String[] args) throws IOException, SQLException {
+
+    }
+
     public void syncData() throws IOException, SQLException {
         System.out.println("Syncing data");
         if (!createTableIfNotExists()) {
@@ -67,7 +76,7 @@ public class ExcelMySqlSync {
         syncData(excelData, mysqlData);
     }
 
-    private List<Map<String, String>> readExcelFile(String filePath) throws IOException {
+    public List<Map<String, String>> readExcelFile(String filePath) throws IOException {
         List<Map<String, String>> data = new ArrayList<>();
         try (Workbook workbook = new XSSFWorkbook(new FileInputStream(filePath))) {
             for (Sheet sheet : workbook) {
@@ -113,7 +122,7 @@ public class ExcelMySqlSync {
         return data;
     }
 
-    private List<Map<String, String>> fetchMySQLData() throws SQLException {
+    public List<Map<String, String>> fetchMySQLData() throws SQLException {
         System.out.println("URL: " + dbUrl);
         System.out.println("USER: " + user);
         System.out.println("PASS: " + pass);
