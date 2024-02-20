@@ -24,7 +24,7 @@ public class MongoCollectionExtractorController {
     private MongoTemplate mongoTemplate; // Inject the MongoTemplate
 
     @PostMapping("/extract")
-    public String extractMongoCollection(@RequestBody MongoRequest request) {
+    public MongoFiles extractMongoCollection(@RequestBody MongoRequest request) {
         try {
             // Connect to MongoDB using the provided connection URI
             MongoClient mongoClient = MongoClients.create(request.getMongoUri());
@@ -52,18 +52,22 @@ public class MongoCollectionExtractorController {
             // Save file generation details to the database
             saveFileGenerationDetails(fileName);
 
-            return "JSON file generated successfully!";
+            return new MongoFiles(fileName);
         } catch (Exception e) {
             e.printStackTrace();
-            return "Error occurred: " + e.getMessage();
+            return new MongoFiles("Error occurred during file generation");
         }
     }
 
     private String writeJsonToFile(String jsonData) throws IOException {
         // Replace ":" in the timestamp with "_"
         String timestamp = LocalDateTime.now().toString().replace(":", "_");
-        String fileName = "mongo_collection_data_" + timestamp + ".json";
-        try (FileWriter fileWriter = new FileWriter(fileName)) {
+        String fileName = "mongo_collection_data" + timestamp + ".json";
+
+        // Specify your directory path here
+        String directoryPath = "C:\\Users\\workhorse\\Documents\\Final Project\\Data Managent(Zata-g)\\GeneratedFiles\\";
+
+        try (FileWriter fileWriter = new FileWriter(directoryPath + fileName)) {
             fileWriter.write(jsonData);
         }
         return fileName;
