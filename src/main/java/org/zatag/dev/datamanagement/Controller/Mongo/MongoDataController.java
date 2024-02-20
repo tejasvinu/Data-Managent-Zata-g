@@ -6,6 +6,8 @@ import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoCursor;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.zatag.dev.datamanagement.Models.Mongo.MongoDBLink;
 import org.zatag.dev.datamanagement.Models.Mongo.MongoFiles;
 import org.zatag.dev.datamanagement.Repository.Mongo.MongoDBLinkRepository;
@@ -17,6 +19,7 @@ import org.springframework.data.mongodb.core.query.Update;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import org.bson.types.ObjectId;
 
 @CrossOrigin(origins = "http://localhost:5173")
 @RestController
@@ -58,44 +61,57 @@ public class MongoDataController {
             return null;
         }
     }
+
     @DeleteMapping("/view/{id}")
-    public void deleteMongoDBLink(@PathVariable String id) {
-        // Connect to MongoDB using the provided connection URI
-        MongoDBLink Link = mongoDBLinkRepository.findById(id).get();
-        MongoClient mongoClient = MongoClients.create(Link.getMongoUri());
-
-        // Specify the database and collection name
-        MongoCollection<Document> collection = mongoClient.getDatabase(Link.getDbName())
-                .getCollection(Link.getCollectionName());
-        collection.dropIndex("id");
-    }
-    @PutMapping("/view/{id}")
-    public void updateMongoLink(@PathVariable String id, @RequestBody HashMap<String,String> row) {
-        // Connect to MongoDB using the provided connection details
-        Optional<MongoDBLink> optionalRequest = mongoDBLinkRepository.findById(id);
-        MongoDBLink request = null;
-        if (optionalRequest.isPresent()) {
-            request = optionalRequest.get();
-            // Rest of your code
-        } else {
-            // Handle the case where no MongoLink was found for the provided id
-            System.out.println("No MongoLink found for id: " + id);
-        }
-        assert request != null;
-
-        // Parse the row information as needed
-        System.out.println("Received row data: " + row);
-
-        // Now you can connect to the database and update the row
+    public ResponseEntity<?> deleteMongoDBLink(@PathVariable String id, @RequestBody Map<String, Object> row) {
         try {
-            // Implement your update logic using the row data
-            Update update = new Update();
-            for (Map.Entry<String, String> entry : row.entrySet()) {
-                update.set(entry.getKey(), entry.getValue());
-            }
-            mongoTemplate.updateFirst(Query.query(Criteria.where("_id").is(id)), update, request.getCollectionName());
+            // Connect to MongoDB using the provided connection URI
+            MongoDBLink Link = mongoDBLinkRepository.findById(id).get();
+            MongoClient mongoClient = MongoClients.create(Link.getMongoUri());
+
+            // Specify the database and collection name
+            MongoCollection<Document> collection = mongoClient.getDatabase(Link.getDbName())
+                    .getCollection(Link.getCollectionName());
+
+            // Convert the $oid value to an ObjectId
+            Map<String, String> idDocument = (Map<String, String>) row.get("_id");
+            ObjectId objectId = new ObjectId(idDocument.get("$oid"));
+
+            // Delete the row
+            collection.deleteOne(new Document("_id", objectId));
+            return ResponseEntity.ok().build();
         } catch (Exception e) {
             e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+    @PutMapping("/view/{id}")
+    public ResponseEntity<?> updateMongoLink(@PathVariable String id, @RequestBody Map<String, Object> row) {
+        try {
+            // Connect to MongoDB using the provided connection URI
+            MongoDBLink Link = mongoDBLinkRepository.findById(id).get();
+            MongoClient mongoClient = MongoClients.create(Link.getMongoUri());
+
+            // Specify the database and collection name
+            MongoCollection<Document> collection = mongoClient.getDatabase(Link.getDbName())
+                    .getCollection(Link.getCollectionName());
+
+            // Convert the $oid value to an ObjectId
+            Map<String, String> idDocument = (Map<String, String>) row.get("_id");
+            ObjectId objectId = new ObjectId(idDocument.get("$oid"));
+
+            // Remove _id from row map as it's not part of the update fields
+            row.remove("_id");
+
+            // Prepare the update document
+            Document updateDoc = new Document("$set", new Document(row));
+
+            // Update the row
+            collection.updateOne(new Document("_id", objectId), updateDoc);
+            return ResponseEntity.ok().build();
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
 

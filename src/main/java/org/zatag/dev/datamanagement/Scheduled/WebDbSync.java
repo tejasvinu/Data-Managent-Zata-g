@@ -136,6 +136,7 @@ public class WebDbSync {
         return mongoTemplate.find(query, Document.class, collectionName);
     }
     public CompletableFuture<JSONArray> sendFileToServerAsync(String directoryPath, String fileName, String serverUrl) {
+        String Prompt = "extract data from the above content to generate a json";
         return CompletableFuture.supplyAsync(() -> {
             File file = new File(directoryPath, fileName);
 
@@ -150,6 +151,7 @@ public class WebDbSync {
                         .setType(MultipartBody.FORM)
                         .addFormDataPart("file", fileName,
                                 RequestBody.create(file, MediaType.parse("text/plain")))
+                        .addFormDataPart("prompt", Prompt)
                         .build();
 
                 Request request = new Request.Builder()
@@ -160,6 +162,7 @@ public class WebDbSync {
                 try {
                     Response response = client.newCall(request).execute();
                     if (response.isSuccessful()) {
+                        assert response.body() != null;
                         String responseBody = response.body().string();
                         JSONArray jsonArrayResponse = new JSONArray(responseBody);
                         System.out.println(jsonArrayResponse);
